@@ -20,11 +20,18 @@ class CunningDocumentScanner {
   /// [isGalleryImportAllowed] is a flag that allows the user to import images from the gallery.
   /// [iosScannerOptions] is a set of options for the iOS scanner.
   ///
+  /// [guideAspect] / [guideInset] configure the Android in-app camera's framing
+  /// guide rectangle (width:height aspect, and margin as a fraction of the
+  /// shorter side). The captured crop is preset to this rectangle and can be
+  /// corrected. These are ignored on iOS.
+  ///
   /// Returns a list of paths to the scanned images, or null if the user cancels the operation.
   static Future<List<String>?> getPictures({
     int noOfPages = 100,
     bool isGalleryImportAllowed = false,
     IosScannerOptions? iosScannerOptions,
+    double? guideAspect,
+    double? guideInset,
   }) async {
     Map<Permission, PermissionStatus> statuses = await [
       Permission.camera,
@@ -38,6 +45,8 @@ class CunningDocumentScanner {
     final List<dynamic>? pictures = await _channel.invokeMethod('getPictures', {
       'noOfPages': noOfPages,
       'isGalleryImportAllowed': isGalleryImportAllowed,
+      if (guideAspect != null) 'guideAspect': guideAspect,
+      if (guideInset != null) 'guideInset': guideInset,
       if (iosScannerOptions != null)
         'iosScannerOptions': {
           'imageFormat': iosScannerOptions.imageFormat.name,

@@ -48,8 +48,10 @@ class CunningDocumentScannerPlugin : FlutterPlugin, MethodCallHandler, ActivityA
         if (call.method == "getPictures") {
             val noOfPages = call.argument<Int>("noOfPages") ?: 50;
             val isGalleryImportAllowed = call.argument<Boolean>("isGalleryImportAllowed") ?: false;
+            val guideAspect = call.argument<Double>("guideAspect")
+            val guideInset = call.argument<Double>("guideInset")
             this.pendingResult = result
-            startScan(noOfPages, isGalleryImportAllowed)
+            startScan(noOfPages, isGalleryImportAllowed, guideAspect, guideInset)
         } else {
             result.notImplemented()
         }
@@ -167,40 +169,32 @@ class CunningDocumentScannerPlugin : FlutterPlugin, MethodCallHandler, ActivityA
 
 
     /**
-     * add document scanner result handler and launch the document scanner
+     * Launch the in-app document scanner (custom camera with framing guide +
+     * forced torch, then the correctable crop view). The ML Kit GmsDocumentScanner
+     * path is intentionally bypassed so we control the capture UI and flash.
      */
-    private fun startScan(noOfPages: Int, isGalleryImportAllowed: Boolean) {
-        val options = GmsDocumentScannerOptions.Builder()
-            .setGalleryImportAllowed(isGalleryImportAllowed)
-            .setPageLimit(noOfPages)
-            .setResultFormats(RESULT_FORMAT_JPEG)
-            .setScannerMode(SCANNER_MODE_FULL)
-            .build()
-        val scanner = GmsDocumentScanning.getClient(options)
-        scanner.getStartScanIntent(activity).addOnSuccessListener {
-            try {
-                // Use a custom request code for onActivityResult identification
-                activity.startIntentSenderForResult(it, START_DOCUMENT_ACTIVITY, null, 0, 0, 0)
-
-            } catch (e: IntentSender.SendIntentException) {
-                pendingResult?.error("ERROR", "Failed to start document scanner", null)
-            }
-        }.addOnFailureListener {
-            if (it is MlKitException) {
-                val intent = createDocumentScanIntent(noOfPages)
-                try {
-                    ActivityCompat.startActivityForResult(
-                        this.activity,
-                        intent,
-                        START_DOCUMENT_FB_ACTIVITY,
-                        null
-                    )
-                } catch (e: ActivityNotFoundException) {
-                    pendingResult?.error("ERROR", "FAILED TO START ACTIVITY", null)
-                }
-            } else {
-                pendingResult?.error("ERROR", "Failed to start document scanner Intent", null)
-            }
+    private fun startScan(
+        noOfPages: Int,
+        isGalleryImportAllowed: Boolean,
+        guideAspect: Double?,
+        guideInset: Double?,
+    ) {
+        val intent = createDocumentScanIntent(noOfPages)
+        if (guideAspect != null) {
+            intent.putExtra(DocumentScannerExtra.EXTRA_GUIDE_ASPECT, guideAspect)
+        }
+        if (guideInset != null) {
+            intent.putExtra(DocumentScannerExtra.EXTRA_GUIDE_INSET, guideInset)
+        }
+        try {
+            ActivityCompat.startActivityForResult(
+                this.activity,
+                intent,
+                START_DOCUMENT_FB_ACTIVITY,
+                null
+            )
+        } catch (e: ActivityNotFoundException) {
+            pendingResult?.error("ERROR", "FAILED TO START ACTIVITY", null)
         }
     }
 

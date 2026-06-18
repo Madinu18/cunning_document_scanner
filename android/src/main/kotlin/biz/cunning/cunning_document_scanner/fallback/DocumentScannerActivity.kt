@@ -11,7 +11,6 @@ import androidx.appcompat.app.AppCompatActivity
 import biz.cunning.cunning_document_scanner.R
 import biz.cunning.cunning_document_scanner.fallback.constants.DefaultSetting
 import biz.cunning.cunning_document_scanner.fallback.constants.DocumentScannerExtra
-import biz.cunning.cunning_document_scanner.fallback.extensions.move
 import biz.cunning.cunning_document_scanner.fallback.extensions.onClick
 import biz.cunning.cunning_document_scanner.fallback.extensions.saveToFile
 import biz.cunning.cunning_document_scanner.fallback.extensions.screenHeight
@@ -44,12 +43,6 @@ class DocumentScannerActivity : AppCompatActivity() {
     private var croppedImageQuality = DefaultSetting.CROPPED_IMAGE_QUALITY
 
     /**
-     * @property cropperOffsetWhenCornersNotFound if we can't find document corners, we set
-     * corners to image size with a slight margin
-     */
-    private val cropperOffsetWhenCornersNotFound = 100.0
-
-    /**
      * @property document This is the current document. Initially it's null. Once we capture
      * the photo, and find the corners we update document.
      */
@@ -62,86 +55,90 @@ class DocumentScannerActivity : AppCompatActivity() {
     private val documents = mutableListOf<Document>()
 
     /**
-     * @property cameraUtil gets called with photo file path once user takes photo, or
-     * exits camera
+     * @property guideAspect width:height aspect of the framing guide rectangle
+     * @property guideInset margin (fraction of shorter side) around the guide
      */
-    private val cameraUtil = CameraUtil(
-        this,
-        onPhotoCaptureSuccess = {
-            // user takes photo
-            originalPhotoPath ->
+    private var guideAspect = DefaultSetting.GUIDE_ASPECT
+    private var guideInset = DefaultSetting.GUIDE_INSET
 
-            // if maxNumDocuments is 3 and this is the 3rd photo, hide the new photo button since
-            // we reach the allowed limit
-            if (documents.size == maxNumDocuments - 1) {
-                val newPhotoButton: ImageButton = findViewById(R.id.new_photo_button)
-                newPhotoButton.isClickable = false
-                newPhotoButton.visibility = View.INVISIBLE
-            }
+    /**
+     * @property cameraUtil launches the in-app camera and reports the captured
+     * photo path plus the detected document corners. Built in [onCreate] once
+     * the guide options have been read from the intent extras.
+     */
+    private lateinit var cameraUtil: CameraUtil
 
-            // get bitmap from photo file path
-            val photo: Bitmap? = try {
-                ImageUtil().getImageFromFilePath(originalPhotoPath)
-            } catch (exception: Exception) {
-                finishIntentWithError("Unable to get bitmap: ${exception.localizedMessage}")
-                return@CameraUtil
-            }
-
-            if (photo == null) {
-                finishIntentWithError("Document bitmap is null.")
-                return@CameraUtil
-            }
-
-            // get document corners by detecting them, or falling back to photo corners with
-            // slight margin if we can't find the corners
-            val corners = try {
-                val (topLeft, topRight, bottomLeft, bottomRight) = getDocumentCorners(photo)
-                Quad(topLeft, topRight, bottomRight, bottomLeft)
-            } catch (exception: Exception) {
-                finishIntentWithError(
-                    "unable to get document corners: ${exception.message}"
-                )
-                return@CameraUtil
-            }
-
-            document = Document(originalPhotoPath, photo.width, photo.height, corners)
-
-
-            // user is allowed to move corners to make corrections
-            try {
-                // set preview image height based off of photo dimensions
-                imageView.setImagePreviewBounds(photo, screenWidth, screenHeight)
-
-                // display original photo, so user can adjust detected corners
-                imageView.setImage(photo)
-
-                // document corner points are in original image coordinates, so we need to
-                // scale and move the points to account for blank space (caused by photo and
-                // photo container having different aspect ratios)
-                val cornersInImagePreviewCoordinates = corners
-                    .mapOriginalToPreviewImageCoordinates(
-                        imageView.imagePreviewBounds,
-                        imageView.imagePreviewBounds.height() / photo.height
-                    )
-
-                // display cropper, and allow user to move corners
-                imageView.setCropper(cornersInImagePreviewCoordinates)
-            } catch (exception: Exception) {
-                finishIntentWithError(
-                    "unable get image preview ready: ${exception.message}"
-                )
-                return@CameraUtil
-            }
-        },
-        onCancelPhoto = {
-            // user exits camera
-            // complete document scan if this is the first document since we can't go to crop view
-            // until user takes at least 1 photo
-            if (documents.isEmpty()) {
-                onClickCancel()
-            }
+    /**
+     * Called when the user captures a photo. [quad] are the detected document
+     * corners (8 normalized values, TL,TR,BR,BL) used to preset the crop, which
+     * the user can then correct.
+     */
+    private fun onPhotoCaptured(originalPhotoPath: String, quad: FloatArray) {
+        // if maxNumDocuments is reached, hide the new photo button
+        if (documents.size == maxNumDocuments - 1) {
+            val newPhotoButton: ImageButton = findViewById(R.id.new_photo_button)
+            newPhotoButton.isClickable = false
+            newPhotoButton.visibility = View.INVISIBLE
         }
-    )
+
+        val photo: Bitmap? = try {
+            ImageUtil().getImageFromFilePath(originalPhotoPath)
+        } catch (exception: Exception) {
+            finishIntentWithError("Unable to get bitmap: ${exception.localizedMessage}")
+            return
+        }
+
+        if (photo == null) {
+            finishIntentWithError("Document bitmap is null.")
+            return
+        }
+
+        // Preset the crop to the detected document corners (mapped onto the
+        // photo). The user corrects it from here.
+        val corners = quadCorners(quad, photo.width, photo.height)
+
+        document = Document(originalPhotoPath, photo.width, photo.height, corners)
+
+        // user is allowed to move corners to make corrections
+        try {
+            imageView.setImagePreviewBounds(photo, screenWidth, screenHeight)
+            imageView.setImage(photo)
+            val cornersInImagePreviewCoordinates = corners
+                .mapOriginalToPreviewImageCoordinates(
+                    imageView.imagePreviewBounds,
+                    imageView.imagePreviewBounds.height() / photo.height
+                )
+            imageView.setCropper(cornersInImagePreviewCoordinates)
+        } catch (exception: Exception) {
+            finishIntentWithError("unable get image preview ready: ${exception.message}")
+            return
+        }
+    }
+
+    /** Called when the user backs out of the camera without capturing. */
+    private fun onPhotoCancelled() {
+        // can't reach the crop view until at least 1 photo is taken
+        if (documents.isEmpty()) {
+            onClickCancel()
+        }
+    }
+
+    /**
+     * Builds the 4 crop corners from a normalized quad (8 values, TL,TR,BR,BL)
+     * and the photo dimensions, clamped to the image bounds.
+     */
+    private fun quadCorners(quad: FloatArray, width: Int, height: Int): Quad {
+        val w = width.toDouble()
+        val h = height.toDouble()
+        fun px(i: Int) = (quad[i * 2] * w).coerceIn(0.0, w)
+        fun py(i: Int) = (quad[i * 2 + 1] * h).coerceIn(0.0, h)
+        return Quad(
+            Point(px(0), py(0)), // top-left
+            Point(px(1), py(1)), // top-right
+            Point(px(2), py(2)), // bottom-right
+            Point(px(3), py(3))  // bottom-left
+        )
+    }
 
     /**
      * @property imageView container with original photo and cropper
@@ -192,6 +189,23 @@ class DocumentScannerActivity : AppCompatActivity() {
             return
         }
 
+        // read framing-guide options (used by the in-app camera and to preset the crop)
+        intent.extras?.get(DocumentScannerExtra.EXTRA_GUIDE_ASPECT)?.let {
+            (it as? Number)?.let { n -> guideAspect = n.toDouble() }
+        }
+        intent.extras?.get(DocumentScannerExtra.EXTRA_GUIDE_INSET)?.let {
+            (it as? Number)?.let { n -> guideInset = n.toDouble() }
+        }
+
+        // build the camera launcher now that guide options are known
+        cameraUtil = CameraUtil(
+            this,
+            guideAspect = guideAspect,
+            guideInset = guideInset,
+            onPhotoCaptureSuccess = { path, quad -> onPhotoCaptured(path, quad) },
+            onCancelPhoto = { onPhotoCancelled() }
+        )
+
         // set click event handlers for new document button, accept and crop document button,
         // and retake document photo button
         val newPhotoButton: ImageButton = findViewById(R.id.new_photo_button)
@@ -212,38 +226,6 @@ class DocumentScannerActivity : AppCompatActivity() {
                 "error opening camera: ${exception.message}"
             )
         }
-    }
-
-    /**
-     * Pass in a photo of a document, and get back 4 corner points (top left, top right, bottom
-     * right, bottom left). This tries to detect document corners, but falls back to photo corners
-     * with slight margin in case we can't detect document corners.
-     *
-     * @param photo the original photo with a rectangular document
-     * @return a List of 4 OpenCV points (document corners)
-     */
-    private fun getDocumentCorners(photo: Bitmap): List<Point> {
-        val cornerPoints: List<Point>? = null
-
-        // if cornerPoints is null then default the corners to the photo bounds with a margin
-        return cornerPoints ?: listOf(
-            Point(0.0, 0.0).move(
-                cropperOffsetWhenCornersNotFound,
-                cropperOffsetWhenCornersNotFound
-            ),
-            Point(photo.width.toDouble(), 0.0).move(
-                -cropperOffsetWhenCornersNotFound,
-                cropperOffsetWhenCornersNotFound
-            ),
-            Point(0.0, photo.height.toDouble()).move(
-                cropperOffsetWhenCornersNotFound,
-                -cropperOffsetWhenCornersNotFound
-            ),
-            Point(photo.width.toDouble(), photo.height.toDouble()).move(
-                -cropperOffsetWhenCornersNotFound,
-                -cropperOffsetWhenCornersNotFound
-            )
-        )
     }
 
     /**
