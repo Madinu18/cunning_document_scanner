@@ -1,4 +1,4 @@
-\package biz.cunning.cunning_document_scanner.fallback.utils
+package biz.cunning.cunning_document_scanner.fallback.utils
 
 import androidx.camera.core.ImageProxy
 import org.opencv.core.Core

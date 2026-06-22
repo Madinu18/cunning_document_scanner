@@ -43,6 +43,19 @@
         android:tint="#FFFFFF"
         android:contentDescription="Tutup" />
 
+    <!-- Optional flash on/off toggle; shown only when isFlashControlAllowed. -->
+    <ImageButton
+        android:id="@+id/flash_button"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="top|end"
+        android:layout_margin="16dp"
+        android:background="@android:color/transparent"
+        android:src="@drawable/ic_flash_on_24"
+        android:tint="#FFFFFF"
+        android:visibility="gone"
+        android:contentDescription="Nyalakan/matikan flash" />
+
     <ImageButton
         android:id="@+id/shutter_button"
         android:layout_width="76dp"
@@ -51,5 +64,19 @@
         android:layout_marginBottom="40dp"
         android:background="@drawable/shutter_button"
         android:contentDescription="Ambil foto" />
+
+    <!-- Optional "pick from gallery" button; shown only when isGalleryImportAllowed. -->
+    <ImageButton
+        android:id="@+id/gallery_button"
+        android:layout_width="52dp"
+        android:layout_height="52dp"
+        android:layout_gravity="bottom|start"
+        android:layout_marginStart="28dp"
+        android:layout_marginBottom="52dp"
+        android:background="@android:color/transparent"
+        android:src="@drawable/ic_photo_library_24"
+        android:tint="#FFFFFF"
+        android:visibility="gone"
+        android:contentDescription="Pilih dari galeri" />
 
 </FrameLayout>

@@ -17,7 +17,12 @@ class CunningDocumentScanner {
   /// This method will open the camera and allow the user to scan documents.
   ///
   /// [noOfPages] is the maximum number of pages that can be scanned.
-  /// [isGalleryImportAllowed] is a flag that allows the user to import images from the gallery.
+  /// [isGalleryImportAllowed] shows a "pick from gallery" button in the Android
+  /// in-app camera so the user can choose an existing image instead of taking a
+  /// photo. Defaults to false (button hidden).
+  /// [isFlashControlAllowed] shows a flash on/off toggle button in the Android
+  /// in-app camera. When false (default) the button is hidden and the torch
+  /// stays forced on for scanning, as before.
   /// [iosScannerOptions] is a set of options for the iOS scanner.
   ///
   /// [guideAspect] / [guideInset] configure the Android in-app camera's framing
@@ -29,6 +34,7 @@ class CunningDocumentScanner {
   static Future<List<String>?> getPictures({
     int noOfPages = 100,
     bool isGalleryImportAllowed = false,
+    bool isFlashControlAllowed = false,
     IosScannerOptions? iosScannerOptions,
     double? guideAspect,
     double? guideInset,
@@ -45,6 +51,7 @@ class CunningDocumentScanner {
     final List<dynamic>? pictures = await _channel.invokeMethod('getPictures', {
       'noOfPages': noOfPages,
       'isGalleryImportAllowed': isGalleryImportAllowed,
+      'isFlashControlAllowed': isFlashControlAllowed,
       if (guideAspect != null) 'guideAspect': guideAspect,
       if (guideInset != null) 'guideInset': guideInset,
       if (iosScannerOptions != null)

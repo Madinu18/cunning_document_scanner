@@ -62,6 +62,13 @@ class DocumentScannerActivity : AppCompatActivity() {
     private var guideInset = DefaultSetting.GUIDE_INSET
 
     /**
+     * @property galleryImportAllowed show a "pick from gallery" button in camera
+     * @property flashControlAllowed show a flash on/off toggle in camera
+     */
+    private var galleryImportAllowed = false
+    private var flashControlAllowed = false
+
+    /**
      * @property cameraUtil launches the in-app camera and reports the captured
      * photo path plus the detected document corners. Built in [onCreate] once
      * the guide options have been read from the intent extras.
@@ -197,11 +204,19 @@ class DocumentScannerActivity : AppCompatActivity() {
             (it as? Number)?.let { n -> guideInset = n.toDouble() }
         }
 
+        // optional in-app camera controls
+        galleryImportAllowed =
+            intent.getBooleanExtra(DocumentScannerExtra.EXTRA_GALLERY_IMPORT_ALLOWED, false)
+        flashControlAllowed =
+            intent.getBooleanExtra(DocumentScannerExtra.EXTRA_FLASH_CONTROL_ALLOWED, false)
+
         // build the camera launcher now that guide options are known
         cameraUtil = CameraUtil(
             this,
             guideAspect = guideAspect,
             guideInset = guideInset,
+            galleryImportAllowed = galleryImportAllowed,
+            flashControlAllowed = flashControlAllowed,
             onPhotoCaptureSuccess = { path, quad -> onPhotoCaptured(path, quad) },
             onCancelPhoto = { onPhotoCancelled() }
         )

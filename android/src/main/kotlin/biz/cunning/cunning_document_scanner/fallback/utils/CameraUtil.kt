@@ -17,6 +17,8 @@ import biz.cunning.cunning_document_scanner.fallback.constants.DocumentScannerEx
  * @param activity current activity
  * @param guideAspect width:height aspect of the framing guide
  * @param guideInset margin (fraction of shorter side) around the guide
+ * @param galleryImportAllowed show a "pick from gallery" button in the camera
+ * @param flashControlAllowed show a flash on/off toggle button in the camera
  * @param onPhotoCaptureSuccess called with the photo path and document corners
  * @param onCancelPhoto called when the user backs out without capturing
  */
@@ -24,6 +26,8 @@ class CameraUtil(
     private val activity: ComponentActivity,
     private val guideAspect: Double,
     private val guideInset: Double,
+    private val galleryImportAllowed: Boolean = false,
+    private val flashControlAllowed: Boolean = false,
     private val onPhotoCaptureSuccess: (photoFilePath: String, quad: FloatArray) -> Unit,
     private val onCancelPhoto: () -> Unit
 ) {
@@ -51,6 +55,8 @@ class CameraUtil(
         val intent = Intent(activity, CameraActivity::class.java).apply {
             putExtra(DocumentScannerExtra.EXTRA_GUIDE_ASPECT, guideAspect)
             putExtra(DocumentScannerExtra.EXTRA_GUIDE_INSET, guideInset)
+            putExtra(DocumentScannerExtra.EXTRA_GALLERY_IMPORT_ALLOWED, galleryImportAllowed)
+            putExtra(DocumentScannerExtra.EXTRA_FLASH_CONTROL_ALLOWED, flashControlAllowed)
         }
         startForResult.launch(intent)
     }

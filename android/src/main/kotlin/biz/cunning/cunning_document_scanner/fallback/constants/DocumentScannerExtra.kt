@@ -13,5 +13,10 @@ class DocumentScannerExtra {
         // kept around it.
         const val EXTRA_GUIDE_ASPECT = "guideAspect"
         const val EXTRA_GUIDE_INSET = "guideInset"
+
+        // Optional in-app camera controls. When true, the camera shows a
+        // "pick from gallery" button / a flash on-off toggle respectively.
+        const val EXTRA_GALLERY_IMPORT_ALLOWED = "isGalleryImportAllowed"
+        const val EXTRA_FLASH_CONTROL_ALLOWED = "isFlashControlAllowed"
     }
 }

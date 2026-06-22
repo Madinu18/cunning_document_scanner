@@ -2,6 +2,7 @@ package biz.cunning.cunning_document_scanner.fallback
 
 import android.app.Activity
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -11,8 +12,11 @@ import android.view.View
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.TextView
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.AspectRatio
+import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageCapture
@@ -29,6 +33,8 @@ import biz.cunning.cunning_document_scanner.fallback.ui.GuideOverlayView
 import biz.cunning.cunning_document_scanner.fallback.utils.DocumentDetector
 import biz.cunning.cunning_document_scanner.fallback.utils.FileUtil
 import org.opencv.android.OpenCVLoader
+import java.io.File
+import java.io.FileOutputStream
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import kotlin.math.abs
@@ -61,9 +67,22 @@ class CameraActivity : AppCompatActivity() {
     private lateinit var guideOverlay: GuideOverlayView
     private lateinit var shutterButton: ImageButton
     private lateinit var hintView: TextView
+    private lateinit var flashButton: ImageButton
+    private lateinit var galleryButton: ImageButton
 
     private var imageCapture: ImageCapture? = null
     private var capturing = false
+
+    // Optional in-app camera controls (off by default → behave as before).
+    private var galleryImportAllowed = false
+    private var flashControlAllowed = false
+
+    // Camera handle + torch state, kept so the flash toggle can flip the torch.
+    private var camera: Camera? = null
+    private var torchOn = true
+
+    // Picks an image from the device gallery when the gallery button is shown.
+    private lateinit var galleryLauncher: ActivityResultLauncher<String>
 
     private var detectionEnabled = false
     // Most recent detected document quad (aligned or not); used to preset the
@@ -82,6 +101,27 @@ class CameraActivity : AppCompatActivity() {
         guideOverlay = findViewById(R.id.guide_overlay)
         shutterButton = findViewById(R.id.shutter_button)
         hintView = findViewById(R.id.guide_hint)
+        flashButton = findViewById(R.id.flash_button)
+        galleryButton = findViewById(R.id.gallery_button)
+
+        galleryImportAllowed =
+            intent.getBooleanExtra(DocumentScannerExtra.EXTRA_GALLERY_IMPORT_ALLOWED, false)
+        flashControlAllowed =
+            intent.getBooleanExtra(DocumentScannerExtra.EXTRA_FLASH_CONTROL_ALLOWED, false)
+
+        // Gallery picker: must be registered before the activity is RESUMED.
+        galleryLauncher =
+            registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+                if (uri != null) onGalleryImagePicked(uri)
+            }
+        if (galleryImportAllowed) {
+            galleryButton.visibility = View.VISIBLE
+            galleryButton.setOnClickListener { galleryLauncher.launch("image/*") }
+        }
+
+        // Flash toggle button is configured in startCamera() once we know whether
+        // the device actually has a flash unit. Hidden unless explicitly allowed.
+        flashButton.setOnClickListener { toggleTorch() }
 
         analysisExecutor = Executors.newSingleThreadExecutor()
         detectionEnabled = try {
@@ -176,9 +216,19 @@ class CameraActivity : AppCompatActivity() {
                     CameraSelector.DEFAULT_BACK_CAMERA,
                     *useCases.toTypedArray()
                 )
-                // Flash always on for scanning.
-                if (camera.cameraInfo.hasFlashUnit()) {
-                    camera.cameraControl.enableTorch(true)
+                this.camera = camera
+                val hasFlash = camera.cameraInfo.hasFlashUnit()
+                // Torch starts on for scanning; the optional flash button can
+                // turn it off.
+                if (hasFlash) {
+                    camera.cameraControl.enableTorch(torchOn)
+                }
+                // Show the flash toggle only when allowed and the device can.
+                if (flashControlAllowed && hasFlash) {
+                    flashButton.visibility = View.VISIBLE
+                    updateFlashIcon()
+                } else {
+                    flashButton.visibility = View.GONE
                 }
             } catch (e: Exception) {
                 finishWithError("Failed to start camera: ${e.message}")
@@ -286,6 +336,53 @@ class CameraActivity : AppCompatActivity() {
         val r = gr.right / vw
         val b = gr.bottom / vh
         return floatArrayOf(l, t, r, t, r, b, l, b)
+    }
+
+    /** Flip the torch on/off (flash toggle button) and refresh its icon. */
+    private fun toggleTorch() {
+        val cam = camera ?: return
+        if (!cam.cameraInfo.hasFlashUnit()) return
+        torchOn = !torchOn
+        cam.cameraControl.enableTorch(torchOn)
+        updateFlashIcon()
+    }
+
+    private fun updateFlashIcon() {
+        flashButton.setImageResource(
+            if (torchOn) R.drawable.ic_flash_on_24 else R.drawable.ic_flash_off_24
+        )
+    }
+
+    /**
+     * Copy the gallery-picked image into a temp file and return it like a
+     * capture. No edge detection is run on imported images — the crop is preset
+     * to the full image and the user adjusts the corners in the crop step.
+     */
+    private fun onGalleryImagePicked(uri: Uri) {
+        // Stop auto-capture racing while we hand off the picked image.
+        capturing = true
+        try {
+            val file: File = FileUtil().createImageFile(this, 0)
+            val input = contentResolver.openInputStream(uri)
+            if (input == null) {
+                capturing = false
+                finishWithError("Unable to open selected image")
+                return
+            }
+            input.use { stream ->
+                FileOutputStream(file).use { output -> stream.copyTo(output) }
+            }
+            val quad = floatArrayOf(0f, 0f, 1f, 0f, 1f, 1f, 0f, 1f)
+            val data = Intent().apply {
+                putExtra(RESULT_PHOTO_PATH, file.absolutePath)
+                putExtra(RESULT_QUAD, quad)
+            }
+            setResult(Activity.RESULT_OK, data)
+            finish()
+        } catch (e: Exception) {
+            capturing = false
+            finishWithError("Unable to import image: ${e.message}")
+        }
     }
 
     private fun finishWithError(message: String) {
