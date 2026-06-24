@@ -49,10 +49,11 @@ class CunningDocumentScannerPlugin : FlutterPlugin, MethodCallHandler, ActivityA
             val noOfPages = call.argument<Int>("noOfPages") ?: 50;
             val isGalleryImportAllowed = call.argument<Boolean>("isGalleryImportAllowed") ?: false;
             val isFlashControlAllowed = call.argument<Boolean>("isFlashControlAllowed") ?: false;
+            val defaultFlashOn = call.argument<Boolean>("defaultFlashOn") ?: true;
             val guideAspect = call.argument<Double>("guideAspect")
             val guideInset = call.argument<Double>("guideInset")
             this.pendingResult = result
-            startScan(noOfPages, isGalleryImportAllowed, isFlashControlAllowed, guideAspect, guideInset)
+            startScan(noOfPages, isGalleryImportAllowed, isFlashControlAllowed, defaultFlashOn, guideAspect, guideInset)
         } else {
             result.notImplemented()
         }
@@ -178,6 +179,7 @@ class CunningDocumentScannerPlugin : FlutterPlugin, MethodCallHandler, ActivityA
         noOfPages: Int,
         isGalleryImportAllowed: Boolean,
         isFlashControlAllowed: Boolean,
+        defaultFlashOn: Boolean,
         guideAspect: Double?,
         guideInset: Double?,
     ) {
@@ -195,6 +197,10 @@ class CunningDocumentScannerPlugin : FlutterPlugin, MethodCallHandler, ActivityA
         intent.putExtra(
             DocumentScannerExtra.EXTRA_FLASH_CONTROL_ALLOWED,
             isFlashControlAllowed
+        )
+        intent.putExtra(
+            DocumentScannerExtra.EXTRA_DEFAULT_FLASH_ON,
+            defaultFlashOn
         )
         try {
             ActivityCompat.startActivityForResult(

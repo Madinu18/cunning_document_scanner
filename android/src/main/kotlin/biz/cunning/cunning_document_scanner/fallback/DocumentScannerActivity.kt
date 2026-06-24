@@ -209,6 +209,8 @@ class DocumentScannerActivity : AppCompatActivity() {
             intent.getBooleanExtra(DocumentScannerExtra.EXTRA_GALLERY_IMPORT_ALLOWED, false)
         flashControlAllowed =
             intent.getBooleanExtra(DocumentScannerExtra.EXTRA_FLASH_CONTROL_ALLOWED, false)
+        val defaultFlashOn =
+            intent.getBooleanExtra(DocumentScannerExtra.EXTRA_DEFAULT_FLASH_ON, true)
 
         // build the camera launcher now that guide options are known
         cameraUtil = CameraUtil(
@@ -217,6 +219,7 @@ class DocumentScannerActivity : AppCompatActivity() {
             guideInset = guideInset,
             galleryImportAllowed = galleryImportAllowed,
             flashControlAllowed = flashControlAllowed,
+            defaultFlashOn = defaultFlashOn,
             onPhotoCaptureSuccess = { path, quad -> onPhotoCaptured(path, quad) },
             onCancelPhoto = { onPhotoCancelled() }
         )

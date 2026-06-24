@@ -79,7 +79,7 @@ class CameraActivity : AppCompatActivity() {
 
     // Camera handle + torch state, kept so the flash toggle can flip the torch.
     private var camera: Camera? = null
-    private var torchOn = true
+    private var torchOn = true // overridden by intent extra in onCreate
 
     // Picks an image from the device gallery when the gallery button is shown.
     private lateinit var galleryLauncher: ActivityResultLauncher<String>
@@ -108,6 +108,8 @@ class CameraActivity : AppCompatActivity() {
             intent.getBooleanExtra(DocumentScannerExtra.EXTRA_GALLERY_IMPORT_ALLOWED, false)
         flashControlAllowed =
             intent.getBooleanExtra(DocumentScannerExtra.EXTRA_FLASH_CONTROL_ALLOWED, false)
+        torchOn =
+            intent.getBooleanExtra(DocumentScannerExtra.EXTRA_DEFAULT_FLASH_ON, true)
 
         // Gallery picker: must be registered before the activity is RESUMED.
         galleryLauncher =

@@ -35,6 +35,7 @@ class CunningDocumentScanner {
     int noOfPages = 100,
     bool isGalleryImportAllowed = false,
     bool isFlashControlAllowed = false,
+    bool defaultFlashOn = true,
     IosScannerOptions? iosScannerOptions,
     double? guideAspect,
     double? guideInset,
@@ -52,6 +53,7 @@ class CunningDocumentScanner {
       'noOfPages': noOfPages,
       'isGalleryImportAllowed': isGalleryImportAllowed,
       'isFlashControlAllowed': isFlashControlAllowed,
+      'defaultFlashOn': defaultFlashOn,
       if (guideAspect != null) 'guideAspect': guideAspect,
       if (guideInset != null) 'guideInset': guideInset,
       if (iosScannerOptions != null)

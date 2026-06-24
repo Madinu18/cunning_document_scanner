@@ -28,6 +28,7 @@ class CameraUtil(
     private val guideInset: Double,
     private val galleryImportAllowed: Boolean = false,
     private val flashControlAllowed: Boolean = false,
+    private val defaultFlashOn: Boolean = true,
     private val onPhotoCaptureSuccess: (photoFilePath: String, quad: FloatArray) -> Unit,
     private val onCancelPhoto: () -> Unit
 ) {
@@ -57,6 +58,7 @@ class CameraUtil(
             putExtra(DocumentScannerExtra.EXTRA_GUIDE_INSET, guideInset)
             putExtra(DocumentScannerExtra.EXTRA_GALLERY_IMPORT_ALLOWED, galleryImportAllowed)
             putExtra(DocumentScannerExtra.EXTRA_FLASH_CONTROL_ALLOWED, flashControlAllowed)
+            putExtra(DocumentScannerExtra.EXTRA_DEFAULT_FLASH_ON, defaultFlashOn)
         }
         startForResult.launch(intent)
     }

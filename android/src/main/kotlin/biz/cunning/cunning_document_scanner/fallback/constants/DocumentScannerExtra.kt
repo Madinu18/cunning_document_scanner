@@ -18,5 +18,6 @@ class DocumentScannerExtra {
         // "pick from gallery" button / a flash on-off toggle respectively.
         const val EXTRA_GALLERY_IMPORT_ALLOWED = "isGalleryImportAllowed"
         const val EXTRA_FLASH_CONTROL_ALLOWED = "isFlashControlAllowed"
+        const val EXTRA_DEFAULT_FLASH_ON = "defaultFlashOn"
     }
 }
