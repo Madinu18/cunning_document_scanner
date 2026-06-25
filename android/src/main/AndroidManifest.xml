@@ -8,13 +8,11 @@
     <application android:theme="@style/Theme.AppCompat.NoActionBar">
         <activity
             android:name=".fallback.DocumentScannerActivity"
-            android:configChanges="orientation|screenSize"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.FullScreen" />
 
         <activity
             android:name=".fallback.CameraActivity"
-            android:configChanges="orientation|screenSize"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.FullScreen" />
 
